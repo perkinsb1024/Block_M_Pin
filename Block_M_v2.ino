@@ -5,8 +5,30 @@
 
 uint8_t buttonPressed = 0;
 uint8_t dimDelay = 10;
-const uint8_t CHARLIE_DIR[] = {0x00000000, 0x00000000, 0x00000000};
-const uint8_t CHARLIE_STATE[] = {0x00000000, 0x00000000, 0x00000000};
+const uint8_t LEDS[] = {
+  // High pin - 1 | Low Pin - 1
+  0x00 | 0xF, // Bottom left, outer
+  0xF0 | 0x0, // Bottom left, inner
+  0x00 | 0x7, // Left straight, 1/5
+  0x70 | 0x0, // Left straight, 2/5
+  0x00 | 0x3, // Left straight, 3/5
+  0x30 | 0x0, // Left straight, 4/5
+  0x10 | 0x0, // Top left
+  0x00 | 0x1, // Left straight, 5/5
+  0x10 | 0xF, // Top left slope
+  0xF0 | 0x1, // Bottom left slope
+  0x10 | 0x7, // Bottom right slope
+  0x70 | 0x1, // Top right slope
+  0x30 | 0x1, // Right straight 5/5
+  0x10 | 0x3, // Top right
+  0x30 | 0xF, // Right straight 4/5
+  0xF0 | 0x3, // Right straight 3/5
+  0x30 | 0x7, // Right straight 2/5
+  0x70 | 0x3, // Right straight 1/5
+  0x70 | 0xF, // Bottom right, inner
+  0xF0 | 0x7, // Bottom right, outer
+  0x00 | 0x0,
+}; 
 
 void _delayCycles(uint16_t i) {
   while(i--) {
@@ -23,73 +45,10 @@ uint8_t pRNG(void) {
 }
 
 void setLed(uint8_t led) {
-  switch(led) {
-    case 0:
-      charliePlex(1 << 0, 1 << 4);
-      break;
-    case 1:
-      charliePlex(1 << 4, 1 << 0);
-      break;
-    case 2:
-      charliePlex(1 << 0, 1 << 3);
-      break;
-    case 3:
-      charliePlex(1 << 3, 1 << 0);
-      break;
-    case 4:
-      charliePlex(1 << 0, 1 << 2);
-      break;
-    case 5:
-      charliePlex(1 << 2, 1 << 0);
-      break;
-    case 6:
-      charliePlex(1 << 0, 1 << 1);
-      break;
-    case 7:
-      charliePlex(1 << 1, 1 << 0);
-      break;
-    case 8:
-      charliePlex(1 << 1, 1 << 4);
-      break;
-    case 9:
-      charliePlex(1 << 4, 1 << 1);
-      break;
-    case 10:
-      charliePlex(1 << 1, 1 << 3);
-      break;
-    case 11:
-      charliePlex(1 << 3, 1 << 1);
-      break;
-    case 12:
-      charliePlex(1 << 1, 1 << 2);
-      break;
-    case 13:
-      charliePlex(1 << 2, 1 << 1);
-      break;
-    case 14:
-      charliePlex(1 << 2, 1 << 4);
-      break;
-    case 15:
-      charliePlex(1 << 4, 1 << 2);
-      break;
-    case 16:
-      charliePlex(1 << 2, 1 << 3);
-      break;
-    case 17:
-      charliePlex(1 << 3, 1 << 2);
-      break;
-    case 18:
-      charliePlex(1 << 3, 1 << 4);
-      break;
-    case 19:
-      charliePlex(1 << 4, 1 << 3);
-      break;
-    default:
-      clearAll();
-      // Emperical delay added to match the time of setting an LED
-      _delayCycles(7);
-      break;
-  }
+  led = LEDS[led];
+  uint8_t high = ((led & 0xF0) >> 4) + 1;
+  uint8_t low = (led & 0x0F) + 1;
+  charliePlex(high, low);
 }
 
 void drawPattern(uint32_t pattern) {
@@ -114,17 +73,8 @@ inline void clearAll() {
 }
 
 void charliePlex(uint8_t high, uint8_t low) {
-#if EFFICIENT_CHARLIE
-// This makes the LEDs much dimmer. Todo: Use logic analyzer
-  DDRB = high;
-  DDRB = low;
+  DDRB = high | low;
   PORTB = high;
-#else
-  clearAll();
-  DDRB |= high;
-  DDRB |= low;
-  PORTB |= high;
-#endif
 }
 
 void blinky() {
