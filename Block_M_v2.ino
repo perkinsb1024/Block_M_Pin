@@ -161,9 +161,9 @@ void patternRandomNoise() {
 }
 
 void patternFadingBlink() {
-  #define BRIGHTNESS_STEPS 16
-  #define NUM_REPS 4
-  #define NUM_DIFF_DELAYS 8
+  const uint8_t BRIGHTNESS_STEPS = 16;
+  const uint8_t NUM_REPS = 4;
+  const uint8_t NUM_DIFF_DELAYS = 8;
   uint8_t newLed;
   uint8_t leds[NUM_LEDS] = {0};
   uint8_t newLedDelays[NUM_DIFF_DELAYS] = {4, 5, 6, 7, 8, 10, 12, 16};
@@ -203,47 +203,167 @@ void patternFadingBlink() {
   }
 }
 
-void patternBoom() {
-  #define BRIGHTNESS_STEPS 16
-  #define NUM_REPS 4
-  #define NUM_DIFF_DELAYS 8
-  uint8_t leds[NUM_LEDS] = {0};
-  uint8_t stages[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
-  uint16_t reps[6] = { 1000, 250, 150, 100, 50, 50 };
-  uint16_t reps2[7] = { 10, 50, 100, 150, 200, 10};
-  uint8_t newLedDelays[NUM_DIFF_DELAYS] = {4, 5, 6, 7, 8, 10, 12, 16};
-  uint8_t newLedDelay = newLedDelays[0];
-  uint16_t newLedCounter = 0;
-  uint8_t delayChanger = 0;
-  uint8_t temp;
-  for(uint8_t i = 0; i < 6; i++) {
-    for(uint16_t rep = 0; rep < reps[i]; rep++) {
-      for(uint8_t led = 0; led < NUM_LEDS; led++) {
-        if(i >= stages[led]) {
-          setLed(led);
+void patternBoomIn(uint8_t* leds) {
+  const uint8_t BRIGHTNESS_STEPS = 32;
+  const uint8_t NUM_REPS = 1;
+  const uint8_t MAX_STAGES = 10;
+//  uint8_t leds[NUM_LEDS] = {0};
+  uint8_t inFade[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
+  uint8_t stages[NUM_LEDS] = {10, 4, 8, 6, 4, 6, 10, 8, 4, 1, 1, 4, 8, 10, 6, 4, 6, 8, 4, 10};
+  uint8_t altStages[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
+  uint8_t altStages2[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
+  uint8_t stage = 0;
+  uint8_t offDelay = 0;
+  bool done = false;
+  bool doneEarly = false;
+  while(!(done || doneEarly)) {
+    // Light the LEDs proportional to the value at leds[i].
+    for(uint16_t rep = 0; rep < NUM_REPS; rep++) {
+      for(uint8_t brightness = 0; brightness < BRIGHTNESS_STEPS; brightness++) {
+        for(uint8_t led = 0; led < NUM_LEDS; led++) {
+            if(leds[led] > brightness) { setLed(led); }
+            else { clearAll(); }
         }
       }
     }
+    // Adjust brightness of each led
+    done = true;
+    if(stage < MAX_STAGES) { stage++; }
+    for(uint8_t led = 0; led < NUM_LEDS; led++) {
+      if(leds[led] < BRIGHTNESS_STEPS) {
+        if(stage >= altStages2[led]) {
+          leds[led] += 8;
+        }
+        done = false;
+      }
+      else {
+        leds[led] = BRIGHTNESS_STEPS;
+      }
+    }
+    if(pRNG() < 16) { doneEarly = true; }
   }
-  clearAll();
-  for(uint8_t i = 1; i < 7; i++) {
-    for(uint16_t rep = 0; rep < reps2[i]; rep++) {
-      for(uint8_t led = 0; led < NUM_LEDS; led++) {
-        if(stages[led] >= i) {
-          setLed(led);
+}
+
+void patternBoomOut(uint8_t* leds) {
+  const uint8_t BRIGHTNESS_STEPS = 32;
+  const uint8_t NUM_REPS = 1;
+//  uint8_t leds[NUM_LEDS] = {0};
+  uint8_t inFade[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
+//  uint8_t outFade[NUM_LEDS] = {1, 4, 2, 3, 4, 3, 1, 2, 4, 5, 5, 4, 2, 1, 3, 4, 3, 2, 4, 1};
+  uint8_t fade[NUM_LEDS] = {8, 4, 7, 6, 3, 6, 8, 7, 2, 1, 1, 2, 7, 8, 6, 3, 6, 7, 4, 8};
+  uint8_t altFade[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
+  uint8_t altFade2[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
+  uint8_t offDelay = 0;
+  bool done = false;
+  bool doneEarly = false;
+  for(uint8_t led = 0; led < NUM_LEDS; led++) {
+    leds[led] = BRIGHTNESS_STEPS;
+  }
+  while(!(done || doneEarly)) {
+    // Light the LEDs proportional to the value at leds[i].
+    for(uint16_t rep = 0; rep < NUM_REPS; rep++) {
+      for(uint8_t brightness = 0; brightness < BRIGHTNESS_STEPS; brightness++) {
+        for(uint8_t led = 0; led < NUM_LEDS; led++) {
+            if(leds[led] > brightness) { setLed(led); }
+            else { clearAll(); }
         }
       }
     }
+    // Adjust brightness of each led
+    done = true;
+    for(uint8_t led = 0; led < NUM_LEDS; led++) {
+      if(leds[led] > altFade2[led]) {
+        leds[led] -= altFade2[led];
+        done = false;
+      }
+      else {
+        leds[led] = 0;
+      }
+    }
+    if(pRNG() < 12) { doneEarly = true; }
   }
-  clearAll();
-  
-//  for(uint8_t i = 6; i > 0; i--) {
-//    for(uint16_t rep = 0; rep < 200; rep++) {
-//      if(i >= stages[i-1]) {
-//        setLed[i-1];
-//      }
-//    }
-//  }
+  if(done) {
+    clearAll();
+    offDelay = pRNG();
+    if(offDelay & 1) {
+      while(offDelay > 0) {
+        _delayCycles(150);
+        offDelay--;
+      }
+    }
+  }
+}
+
+void patternBoom(uint8_t* leds, bool firstHalf, uint8_t endEarlyFreq, uint8_t brightnessStep) {
+  const uint8_t BRIGHTNESS_STEPS = 24;
+  const uint8_t NUM_REPS = 2;
+  const uint8_t MAX_STAGE = 11;
+  const bool secondHalf = !firstHalf;
+//  uint8_t leds[NUM_LEDS] = {0};
+//  uint8_t inFade[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
+  uint8_t stages[NUM_LEDS] = {10, 4, 8, 6, 4, 6, 10, 8, 4, 1, 1, 4, 8, 10, 6, 4, 6, 8, 4, 10};
+  uint8_t altStages[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
+  uint8_t altStages2[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
+  uint8_t stage = (firstHalf ? 0 : MAX_STAGE);
+  uint8_t offDelay = 0;
+  bool skipFirstDraw = secondHalf;
+  bool done = false;
+  bool doneEarly = false;
+  while(!(done || doneEarly)) {
+    if(!skipFirstDraw) {
+      // Light the LEDs proportional to the value at leds[i].
+      for(uint16_t rep = 0; rep < NUM_REPS; rep++) {
+        for(uint8_t brightness = 0; brightness < BRIGHTNESS_STEPS; brightness++) {
+          for(uint8_t led = 0; led < NUM_LEDS; led++) {
+              if(leds[led] > brightness) { setLed(led); }
+              else { clearAll(); }
+          }
+        }
+      }
+    }
+    else {
+      skipFirstDraw = false;
+    }
+    // Adjust brightness of each led
+    done = true;
+    if(firstHalf && stage < MAX_STAGE) { stage++; }
+    else if(secondHalf && stage > 0) { stage--; }
+    for(uint8_t led = 0; led < NUM_LEDS; led++) {
+      if(firstHalf) {
+        if(leds[led] < BRIGHTNESS_STEPS) {
+          if(stage >= altStages2[led]) {
+            leds[led] += brightnessStep;
+          }
+          done = false;
+        }
+        else {
+          leds[led] = BRIGHTNESS_STEPS;
+        }
+      }
+      else {
+        if(leds[led] > brightnessStep) {
+          if(stage <= altStages2[led]) {
+            leds[led] -= brightnessStep;
+          }
+          done = false;
+        }
+        else {
+          leds[led] = 0;
+        }
+      }
+    }
+    if(pRNG() < endEarlyFreq) { doneEarly = true; }
+  }
+  if(done && secondHalf) {
+    clearAll();
+    offDelay = pRNG();
+    if(offDelay & 1) {
+      while(offDelay > 0) {
+        _delayCycles(600);
+        offDelay--;
+      }
+    }
+  }
 }
 
 void patternLoop() {
@@ -380,6 +500,7 @@ void setup() {
 }
 
 void loop() {
+  uint8_t leds[NUM_LEDS] = {0};
   switch(patternIndex) {
     case 0:
       patternFadingBlink();
@@ -394,7 +515,12 @@ void loop() {
       patternWipe();
       break;
     case 4:
-      patternBoom();
+      while(1) {
+        patternBoomIn(leds);
+        patternBoomOut(leds);
+//        patternBoom(leds, true, 16, 6);
+//        patternBoom(leds, false, 32, 4);
+      }
       break;
     case 5:
       patternFlash();
