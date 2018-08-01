@@ -7,14 +7,16 @@
 #define MAX_DELAY (65535)
 #define NUM_LEDS (20)
 #define NUM_PATTERNS (6)
+#define MIN_RAND_A (96)
+#define MAX_RAND_A (138)
 
 // References
 #define EEPROM_ADDR_PATTERN (0)
-#define EEPROM_ADDR_RAND_S (1)
-#define EEPROM_ADDR_RAND_A (2)
+#define EEPROM_ADDR_RAND_A (1)
 
 uint8_t patternIndex = 0;
 uint8_t buttonPressed = 0;
+uint8_t a = MIN_RAND_A;
 const uint8_t LEDS[] = {
   // High pin - 1 | Low Pin - 1
   0x00 | 0xF, // Bottom left, outer   
@@ -48,8 +50,8 @@ void _delayCycles(uint16_t i) {
 
 uint8_t pRNG(void) {
   // https://www.avrfreaks.net/forum/tiny-fast-prng
-  // Todo: Update s and a occasionally to increase randomness
-  static uint8_t s=0xaa,a=0;
+  // Note: `a` is defined globally, read from EEPROM for improved 'randomness'
+  static uint8_t s=0x0F;
   s^=s<<3;
   s^=s>>5;
   s^=a++>>2;
@@ -405,6 +407,7 @@ void patternCrawl() {
 }
 
 void setup() {
+  bool updateA = false;
   // Determine if the button was pressed (external reset).
   if(MCUSR & (1 << EXTRF)) {
     buttonPressed = 1;
@@ -414,13 +417,24 @@ void setup() {
 #if USE_EEPROM
   // Read the saved pattern index.
   patternIndex = EEPROM.read(EEPROM_ADDR_PATTERN);
+  a = EEPROM.read(EEPROM_ADDR_RAND_A);
   // If the button was pressed, increment pattern.
   if(buttonPressed || patternIndex >= NUM_PATTERNS) {
     patternIndex += 1;
     if(patternIndex > NUM_PATTERNS) {
       patternIndex = 0;
+      // Increment random seed
+      a++;
+      updateA = true;
     }
     EEPROM.write(EEPROM_ADDR_PATTERN, patternIndex);
+  }
+  if(a > MAX_RAND_A || a < MIN_RAND_A) {
+    a = MIN_RAND_A;
+    updateA = true;
+  }
+  if(updateA) {
+    EEPROM.write(EEPROM_ADDR_RAND_A, a);
   }
 #else
   patternIndex = 5;
