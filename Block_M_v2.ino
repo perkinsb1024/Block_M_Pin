@@ -1,13 +1,12 @@
 #include <EEPROM.h>
 
 // Program configuration
-#define USE_EEPROM false
+#define USE_EEPROM true
 
 // Limits
 #define MAX_DELAY (65535)
 #define NUM_LEDS (20)
-//#define NUM_PATTERNS (6)
-#define NUM_PATTERNS (3)
+#define NUM_PATTERNS (6)
 
 // References
 #define EEPROM_ADDR_PATTERN (0)
@@ -93,27 +92,6 @@ void drawBitmapFast(uint32_t bitmap) {
     bitmap = bitmap >> 1;
   }
 }
-
-void drawBitmapFade(uint32_t bitmap, uint16_t highDelay, uint16_t lowDelay) {
-  // Shift bitmap right one bit at a time to determine if each LED should be on
-  for(uint8_t i = 0; i < NUM_LEDS; i++) {
-    if(bitmap & 1) {
-      // Turn on the current LED
-      setLed(i);
-    }
-    else {
-      // Displays nothing, but takes the same amount of time
-      // to keep the brightness equal regardless of how many LEDs are on
-      setLed(NUM_LEDS);
-    }
-    _delayCycles(highDelay);
-    // Shift right to get the next pixel
-    bitmap = bitmap >> 1;
-  }
-  clearAll();
-  _delayCycles(lowDelay);
-}
-
 
 inline void clearAll() {
   DDRB = 0;
@@ -305,26 +283,60 @@ void patternLoop() {
 }
 
 void patternFade() {
-  uint32_t onBitmap = 0xFFFFFFFF;
-  uint16_t fadeSteps = 50;
-  uint8_t i = 0;
-  uint16_t onDelay = 0;
-  uint16_t offDelay = fadeSteps * NUM_LEDS;
-  while(i < fadeSteps * 2) {
-    drawBitmapFade(onBitmap, onDelay, offDelay);
-    if(i < fadeSteps) { 
-      onDelay += 1;
-      offDelay -= NUM_LEDS;
+  const uint8_t BRIGHTNESS_RANGE = 48;
+  uint8_t brightnessStep = 1;
+  uint8_t ledBrightness = 0;
+  uint8_t reps = 0;
+  bool done = false;
+  bool fadeIn = true;
+  while(!done) {
+    brightnessStep = 3;
+    reps = 2;
+    if(ledBrightness < 4) {
+      reps = 5;
+      brightnessStep = 1;
+    }
+    else if(ledBrightness < 8) {
+      reps = 4;
+      brightnessStep = 2;
+    }
+    else if(ledBrightness < 12) {
+      reps = 3;
+    }
+    // Light the LEDs proportional to the value at leds[i].
+    for(uint16_t rep = 0; rep < reps; rep++) {
+      for(uint8_t brightness = 0; brightness < BRIGHTNESS_RANGE; brightness++) {
+        for(uint8_t led = 0; led < NUM_LEDS; led++) {
+            if(ledBrightness > brightness) { setLed(led); }
+            else { clearAll(); }
+        }
+      }
+    }
+    // Adjust the current brightness   
+    if(fadeIn) {
+      if(ledBrightness < BRIGHTNESS_RANGE) {
+        ledBrightness += brightnessStep;
+      }
+      else {
+        ledBrightness = BRIGHTNESS_RANGE;
+      }
     }
     else {
-      onDelay -= 1;
-      offDelay += NUM_LEDS;
+      if(ledBrightness >= brightnessStep) {
+        ledBrightness -= brightnessStep;
+      }
+      else {
+        ledBrightness = 0;
+      }
     }
-    i++;
+    if(fadeIn && ledBrightness == BRIGHTNESS_RANGE) {
+      fadeIn = false;
+    }
+    else if(!fadeIn && ledBrightness == 0) {
+      done = true;
+    }
   }
-  for(uint8_t i = 0; i < 16; i++) {
-    drawBitmap(0);
-  }
+  _delayCycles(15000);
 }
 
 void patternFlash() {
@@ -405,7 +417,7 @@ void setup() {
   // If the button was pressed, increment pattern.
   if(buttonPressed || patternIndex >= NUM_PATTERNS) {
     patternIndex += 1;
-    if(patternIndex >= NUM_PATTERNS) {
+    if(patternIndex > NUM_PATTERNS) {
       patternIndex = 0;
     }
     EEPROM.write(EEPROM_ADDR_PATTERN, patternIndex);
