@@ -205,13 +205,12 @@ void patternFadingBlink() {
 
 void patternBoomIn(uint8_t* leds) {
   const uint8_t BRIGHTNESS_STEPS = 32;
-  const uint8_t NUM_REPS = 1;
+  const uint8_t BRIGHTNESS_STEP = 17;
+  const uint8_t NUM_REPS = 1 + (pRNG() & 1);
   const uint8_t MAX_STAGES = 10;
-//  uint8_t leds[NUM_LEDS] = {0};
-  uint8_t inFade[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
-  uint8_t stages[NUM_LEDS] = {10, 4, 8, 6, 4, 6, 10, 8, 4, 1, 1, 4, 8, 10, 6, 4, 6, 8, 4, 10};
-  uint8_t altStages[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
-  uint8_t altStages2[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
+  uint8_t centerStages[NUM_LEDS] = {10, 4, 8, 6, 4, 6, 10, 8, 4, 1, 1, 4, 8, 10, 6, 4, 6, 8, 4, 10};
+  uint8_t chaseStages[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
+  uint8_t verticalStages[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
   uint8_t stage = 0;
   uint8_t offDelay = 0;
   bool done = false;
@@ -231,7 +230,7 @@ void patternBoomIn(uint8_t* leds) {
     if(stage < MAX_STAGES) { stage++; }
     for(uint8_t led = 0; led < NUM_LEDS; led++) {
       if(leds[led] < BRIGHTNESS_STEPS) {
-        if(stage >= altStages2[led]) {
+        if(stage >= verticalStages[led]) {
           leds[led] += 8;
         }
         done = false;
@@ -240,19 +239,17 @@ void patternBoomIn(uint8_t* leds) {
         leds[led] = BRIGHTNESS_STEPS;
       }
     }
-    if(pRNG() < 16) { doneEarly = true; }
+    if(pRNG() < 20) { doneEarly = true; }
   }
 }
 
 void patternBoomOut(uint8_t* leds) {
   const uint8_t BRIGHTNESS_STEPS = 32;
-  const uint8_t NUM_REPS = 1;
-//  uint8_t leds[NUM_LEDS] = {0};
-  uint8_t inFade[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
-//  uint8_t outFade[NUM_LEDS] = {1, 4, 2, 3, 4, 3, 1, 2, 4, 5, 5, 4, 2, 1, 3, 4, 3, 2, 4, 1};
-  uint8_t fade[NUM_LEDS] = {8, 4, 7, 6, 3, 6, 8, 7, 2, 1, 1, 2, 7, 8, 6, 3, 6, 7, 4, 8};
-  uint8_t altFade[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
-  uint8_t altFade2[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
+  const uint8_t NUM_REPS = 2;
+  uint8_t centerFade[NUM_LEDS] = {8, 4, 7, 6, 3, 6, 8, 7, 2, 1, 1, 2, 7, 8, 6, 3, 6, 7, 4, 8};
+  uint8_t chaseFade[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
+//  uint8_t verticalFade[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
+  uint8_t verticalFade[NUM_LEDS] = {2, 2, 4, 6, 8, 10, 12, 12, 10, 8, 8, 10, 12, 12, 10, 8, 6, 4, 2, 2};
   uint8_t offDelay = 0;
   bool done = false;
   bool doneEarly = false;
@@ -272,15 +269,15 @@ void patternBoomOut(uint8_t* leds) {
     // Adjust brightness of each led
     done = true;
     for(uint8_t led = 0; led < NUM_LEDS; led++) {
-      if(leds[led] > altFade2[led]) {
-        leds[led] -= altFade2[led];
+      if(leds[led] > verticalFade[led]) {
+        leds[led] -= verticalFade[led];
         done = false;
       }
       else {
         leds[led] = 0;
       }
     }
-    if(pRNG() < 12) { doneEarly = true; }
+    if(pRNG() < 24) { doneEarly = true; }
   }
   if(done) {
     clearAll();
@@ -288,78 +285,6 @@ void patternBoomOut(uint8_t* leds) {
     if(offDelay & 1) {
       while(offDelay > 0) {
         _delayCycles(150);
-        offDelay--;
-      }
-    }
-  }
-}
-
-void patternBoom(uint8_t* leds, bool firstHalf, uint8_t endEarlyFreq, uint8_t brightnessStep) {
-  const uint8_t BRIGHTNESS_STEPS = 24;
-  const uint8_t NUM_REPS = 2;
-  const uint8_t MAX_STAGE = 11;
-  const bool secondHalf = !firstHalf;
-//  uint8_t leds[NUM_LEDS] = {0};
-//  uint8_t inFade[NUM_LEDS] = {5, 2, 4, 3, 2, 3, 5, 4, 2, 1, 1, 2, 4, 5, 3, 2, 3, 4, 2, 5};
-  uint8_t stages[NUM_LEDS] = {10, 4, 8, 6, 4, 6, 10, 8, 4, 1, 1, 4, 8, 10, 6, 4, 6, 8, 4, 10};
-  uint8_t altStages[NUM_LEDS] = {8, 8, 7, 6, 5, 4, 4, 3, 2, 1, 1, 2, 3, 4, 4, 5, 6, 7, 8, 8};
-  uint8_t altStages2[NUM_LEDS] = {1, 1, 2, 3, 4, 5, 6, 6, 5, 4, 4, 5, 6, 6, 5, 4, 3, 2, 1, 1};
-  uint8_t stage = (firstHalf ? 0 : MAX_STAGE);
-  uint8_t offDelay = 0;
-  bool skipFirstDraw = secondHalf;
-  bool done = false;
-  bool doneEarly = false;
-  while(!(done || doneEarly)) {
-    if(!skipFirstDraw) {
-      // Light the LEDs proportional to the value at leds[i].
-      for(uint16_t rep = 0; rep < NUM_REPS; rep++) {
-        for(uint8_t brightness = 0; brightness < BRIGHTNESS_STEPS; brightness++) {
-          for(uint8_t led = 0; led < NUM_LEDS; led++) {
-              if(leds[led] > brightness) { setLed(led); }
-              else { clearAll(); }
-          }
-        }
-      }
-    }
-    else {
-      skipFirstDraw = false;
-    }
-    // Adjust brightness of each led
-    done = true;
-    if(firstHalf && stage < MAX_STAGE) { stage++; }
-    else if(secondHalf && stage > 0) { stage--; }
-    for(uint8_t led = 0; led < NUM_LEDS; led++) {
-      if(firstHalf) {
-        if(leds[led] < BRIGHTNESS_STEPS) {
-          if(stage >= altStages2[led]) {
-            leds[led] += brightnessStep;
-          }
-          done = false;
-        }
-        else {
-          leds[led] = BRIGHTNESS_STEPS;
-        }
-      }
-      else {
-        if(leds[led] > brightnessStep) {
-          if(stage <= altStages2[led]) {
-            leds[led] -= brightnessStep;
-          }
-          done = false;
-        }
-        else {
-          leds[led] = 0;
-        }
-      }
-    }
-    if(pRNG() < endEarlyFreq) { doneEarly = true; }
-  }
-  if(done && secondHalf) {
-    clearAll();
-    offDelay = pRNG();
-    if(offDelay & 1) {
-      while(offDelay > 0) {
-        _delayCycles(600);
         offDelay--;
       }
     }
@@ -486,7 +411,7 @@ void setup() {
     EEPROM.write(EEPROM_ADDR_PATTERN, patternIndex);
   }
 #else
-  patternIndex = 4;
+  patternIndex = 5;
 #endif
   ACSR |= _BV(ACD); // Disable ADC.
   ADCSRA &= ~_BV(ADEN); // Disable ADC.
@@ -515,18 +440,16 @@ void loop() {
       patternWipe();
       break;
     case 4:
+      patternFlash();
+      break;
+    case 5:
+      patternFade();
+      break;
+    case 6:
       while(1) {
         patternBoomIn(leds);
         patternBoomOut(leds);
-//        patternBoom(leds, true, 16, 6);
-//        patternBoom(leds, false, 32, 4);
       }
-      break;
-    case 5:
-      patternFlash();
-      break;
-    case 6:
-      patternFade();
       break;
     default:
       _delayCycles(MAX_DELAY);
