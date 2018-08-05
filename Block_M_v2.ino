@@ -1,12 +1,14 @@
-#include <EEPROM.h>
-
 // Program configuration
 #define USE_EEPROM true
+
+#if USE_EEPROM
+#include <EEPROM.h>
+#endif
 
 // Limits
 #define MAX_DELAY (65535)
 #define NUM_LEDS (20)
-#define NUM_PATTERNS (6)
+#define NUM_PATTERNS (7)
 #define MIN_RAND_A (96)
 #define MAX_RAND_A (138)
 
@@ -14,9 +16,16 @@
 #define EEPROM_ADDR_PATTERN (0)
 #define EEPROM_ADDR_RAND_A (1)
 
+// Keep track of which pattern to display
 uint8_t patternIndex = 0;
+// Keep track of whether the reset reason was the power switch or reset button
 uint8_t buttonPressed = 0;
+// This is one of two seed values for the random function
 uint8_t a = MIN_RAND_A;
+// This array stores the pin states to light up each LED.
+// The high nibble determines which pin number should be high.
+// The low nibble defines which pin should be low. All other pins
+// should be high impedence (input).
 const uint8_t LEDS[] = {
   // High pin - 1 | Low Pin - 1
   0x00 | 0xF, // Bottom left, outer   
@@ -42,12 +51,26 @@ const uint8_t LEDS[] = {
   0x00 | 0x0,
 }; 
 
-void _delayCycles(uint16_t i) {
-  while(i--) {
+/*
+ * Function:  delayCycles 
+ * --------------------
+ * Delays for a given number of cycles
+ *
+ * n: number of cycles to wait
+ */
+void delayCycles(uint16_t n) {
+  while(n--) {
     asm("nop");
   }
 }
 
+/*
+ * Function:  pRNG
+ * --------------------
+ * Generates a "random" number
+ *
+ * returns: a somewhat random number
+ */
 uint8_t pRNG(void) {
   // https://www.avrfreaks.net/forum/tiny-fast-prng
   // Note: `a` is defined globally, read from EEPROM for improved 'randomness'
@@ -58,6 +81,13 @@ uint8_t pRNG(void) {
   return s;
 }
 
+/*
+ * Function:  setLed 
+ * --------------------
+ * Light a single LED
+ *
+ * led: which LED to light (0 to NUM_LEDS-1)
+ */
 void setLed(uint8_t led) {
   led = LEDS[led];
   uint8_t high = ((led & 0xF0) >> 4) + 1;
@@ -65,6 +95,37 @@ void setLed(uint8_t led) {
   charliePlex(high, low);
 }
 
+/*
+ * Function:  charliePlex 
+ * --------------------
+ * Light a single LED
+ *
+ * high: the PORTB pin value that should be high
+ * low: the PORTB pin value that should be low
+ */
+void charliePlex(uint8_t high, uint8_t low) {
+  DDRB = high | low;
+  PORTB = high;
+}
+
+/*
+ * Function:  clearAll 
+ * --------------------
+ * Turns off all LEDs
+ */
+inline void clearAll() {
+  DDRB = 0;
+  PORTB = 0;
+}
+
+/*
+ * Function:  drawBitmap
+ * --------------------
+ * Light LEDs based on a values in a bitmap.
+ * Should be called in a loop.
+ *
+ * bitmap: bit n represents LED n, 1 = on, 0 = off
+ */
 void drawBitmap(uint32_t bitmap) {
   // Shift bitmap right one bit at a time to determine if each LED should be on
   for(uint8_t i = 0; i < NUM_LEDS; i++) {
@@ -82,6 +143,15 @@ void drawBitmap(uint32_t bitmap) {
   }
 }
 
+/*
+ * Function:  drawBitmapFast
+ * --------------------
+ * Light LEDs based on a values in a bitmap.
+ * Should be called in a loop.
+ * Like drawBitmap, but faster. Brightness of LEDs will vary
+ *
+ * bitmap: bit n represents LED n, 1 = on, 0 = off
+ */
 void drawBitmapFast(uint32_t bitmap) {
   // The brightness of LEDs will change based on how many are lighted
   // Shift bitmap right one bit at a time to determine if each LED should be on
@@ -95,16 +165,12 @@ void drawBitmapFast(uint32_t bitmap) {
   }
 }
 
-inline void clearAll() {
-  DDRB = 0;
-  PORTB = 0;
-}
-
-void charliePlex(uint8_t high, uint8_t low) {
-  DDRB = high | low;
-  PORTB = high;
-}
-
+/*
+ * Function:  patternSingleBlink
+ * --------------------
+ * LEDs blink randomly, one at a time
+ * Should be called in a loop.
+ */
 void patternSingleBlink() {
   uint8_t led = pRNG();
   uint16_t onTime = 8000 + 256 << (pRNG() & 0b111); // 8256 - 40768
@@ -114,12 +180,17 @@ void patternSingleBlink() {
     led -= NUM_LEDS;
   }
   setLed(led);
-  _delayCycles(onTime);
+  delayCycles(onTime);
   clearAll();
-  _delayCycles(offTime);
+  delayCycles(offTime);
 }
 
-
+/*
+ * Function:  patternRandomNoise
+ * --------------------
+ * LEDs blink randomly, up to half of at a time
+ * Should be called in a loop.
+ */
 void patternRandomNoise() {
   // Only half the LEDs can possibly be on at a time, alternating every cycle.
   // This produces more "motion".
@@ -140,6 +211,12 @@ void patternRandomNoise() {
   }
 }
 
+/*
+ * Function:  patternFadingBlink
+ * --------------------
+ * LEDs blink randomly, fading out after turning on
+ * Should be called in a loop.
+ */
 void patternFadingBlink() {
   const uint8_t BRIGHTNESS_STEPS = 16;
   const uint8_t NUM_REPS = 4;
@@ -153,6 +230,7 @@ void patternFadingBlink() {
   uint8_t temp;
   while(1) {
     delayChanger = pRNG();
+    if(delayChanger == 255) { return; }// Todo: remove
     if(delayChanger == newLedDelay) {
       temp = (pRNG() % NUM_DIFF_DELAYS);
       newLedDelay = newLedDelays[temp];
@@ -183,6 +261,14 @@ void patternFadingBlink() {
   }
 }
 
+/*
+ * Function:  patternBoomIn
+ * --------------------
+ * Like a VU/Volume Meter.
+ * Should be called in a loop followed by patternBoomOut
+ * 
+ * leds: array of uint8_t of size NUM_LEDS, init with 0 outside of loop
+ */
 void patternBoomIn(uint8_t* leds) {
   const uint8_t BRIGHTNESS_STEPS = 32;
   const uint8_t BRIGHTNESS_STEP = 17;
@@ -223,6 +309,15 @@ void patternBoomIn(uint8_t* leds) {
   }
 }
 
+/*
+ * Function:  patternBoomOut
+ * --------------------
+ * Like a VU/Volume Meter.
+ * Should be called in a loop preceded by patternBoomIn
+ * 
+ * leds: array of uint8_t of size NUM_LEDS, same array
+ *       as passed into patternBoomIn
+ */
 void patternBoomOut(uint8_t* leds) {
   const uint8_t BRIGHTNESS_STEPS = 32;
   const uint8_t NUM_REPS = 2;
@@ -264,13 +359,19 @@ void patternBoomOut(uint8_t* leds) {
     offDelay = pRNG();
     if(offDelay & 1) {
       while(offDelay > 0) {
-        _delayCycles(150);
+        delayCycles(150);
         offDelay--;
       }
     }
   }
 }
 
+/*
+ * Function:  patternLoop
+ * --------------------
+ * LEDs fill up one at a time before unfilling one at a time
+ * Should be called in a loop.
+ */
 void patternLoop() {
   uint32_t bitmap = 0;
   for(uint8_t j = 0; j <= NUM_LEDS * 2; j++) {
@@ -284,6 +385,12 @@ void patternLoop() {
   }
 }
 
+/*
+ * Function:  patternFade
+ * --------------------
+ * LEDs fade in and then fade out
+ * Should be called in a loop.
+ */
 void patternFade() {
   const uint8_t BRIGHTNESS_RANGE = 48;
   uint8_t brightnessStep = 1;
@@ -338,9 +445,15 @@ void patternFade() {
       done = true;
     }
   }
-  _delayCycles(15000);
+  delayCycles(15000);
 }
 
+/*
+ * Function:  patternFlash
+ * --------------------
+ * LEDs blink on and off all together
+ * Should be called in a loop.
+ */
 void patternFlash() {
   uint32_t onBitmap = 0xFFFFFFFF;
   uint32_t offBitmap = 0x00000000;
@@ -354,6 +467,13 @@ void patternFlash() {
   }
 }
 
+/*
+ * Function:  patternWipe
+ * --------------------
+ * LEDs fill in from the left, then unfill to the right.
+ * It looks like they're wiping across from left to right
+ * Should be called in a loop.
+ */
 void patternWipe() {
   uint32_t rows[] = {
     0x00000041,
@@ -379,30 +499,26 @@ void patternWipe() {
   }
 }
 
-void patternCrawl() {
+/*
+ * Function:  patternChase
+ * --------------------
+ * Theater-Chase effect, LEDs chase each other
+ * Should be called in a loop.
+ */
+void patternChase() {
   uint8_t SPACING = 5;
-  uint8_t startIndex = 0;
-  uint8_t counter = 0;
-  uint32_t bitmap = 0;
-  while(startIndex < SPACING) {
-    bitmap = 0;
-    counter = startIndex;
-    for(uint8_t led = 0; led < NUM_LEDS; led++) {
-      bitmap <<= 1;
-      if(counter == 0) {
-        bitmap |= 1;
-      }
-      if(counter < SPACING - 1) {
-        counter += 1;
-      }
-      else {
-        counter = 0;
+  const uint8_t BRIGHTNESS_RANGE = 16;
+  const uint8_t LED_BRIGHTNESS = 10;
+  uint8_t reps = 64;
+  for(uint8_t startIndex = 0; startIndex < SPACING; startIndex++) {
+    for(uint16_t rep = 0; rep < reps; rep++) {
+      for(uint8_t brightness = 0; brightness < BRIGHTNESS_RANGE; brightness++) {
+        for(uint8_t led = startIndex; led < NUM_LEDS; led+=SPACING) {
+            if(LED_BRIGHTNESS > brightness) { setLed(led); }
+            else { clearAll(); }
+        }
       }
     }
-    for(uint16_t i = 0; i < 300; i++) {
-      drawBitmapFast(bitmap);
-    }
-    startIndex++;
   }
 }
 
@@ -421,7 +537,7 @@ void setup() {
   // If the button was pressed, increment pattern.
   if(buttonPressed || patternIndex >= NUM_PATTERNS) {
     patternIndex += 1;
-    if(patternIndex > NUM_PATTERNS) {
+    if(patternIndex >= NUM_PATTERNS) {
       patternIndex = 0;
       // Increment random seed
       a++;
@@ -437,7 +553,7 @@ void setup() {
     EEPROM.write(EEPROM_ADDR_RAND_A, a);
   }
 #else
-  patternIndex = 5;
+  patternIndex = 0;
 #endif
   ACSR |= _BV(ACD); // Disable ADC.
   ADCSRA &= ~_BV(ADEN); // Disable ADC.
@@ -451,13 +567,13 @@ void setup() {
 }
 
 void loop() {
-  uint8_t leds[NUM_LEDS] = {0};
+  static uint8_t leds[NUM_LEDS] = {0};
   switch(patternIndex) {
     case 0:
       patternFadingBlink();
       break;
     case 1:
-      patternCrawl();
+      patternChase();
       break;
     case 2:
       patternLoop();
@@ -472,13 +588,11 @@ void loop() {
       patternFade();
       break;
     case 6:
-      while(1) {
-        patternBoomIn(leds);
-        patternBoomOut(leds);
-      }
+      patternBoomIn(leds);
+      patternBoomOut(leds);
       break;
     default:
-      _delayCycles(MAX_DELAY);
+      delayCycles(MAX_DELAY);
       break;
   }
 }
