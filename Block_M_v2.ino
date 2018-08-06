@@ -16,11 +16,11 @@
 #define EEPROM_ADDR_PATTERN (0)
 #define EEPROM_ADDR_RAND_A (1)
 
-// Keep track of which pattern to display
+// Keep track of which pattern to display.
 uint8_t patternIndex = 0;
-// Keep track of whether the reset reason was the power switch or reset button
+// Keep track of whether the reset reason was the power switch or reset button.
 uint8_t buttonPressed = 0;
-// This is one of two seed values for the random function
+// This is one of two seed values for the random function.
 uint8_t a = MIN_RAND_A;
 // This array stores the pin states to light up each LED.
 // The high nibble determines which pin number should be high.
@@ -48,15 +48,15 @@ const uint8_t LEDS[] = {
   0x70 | 0x3, // Right straight 1/5
   0x70 | 0xF, // Bottom right, inner
   0xF0 | 0x7, // Bottom right, outer
-  0x00 | 0x0,
+  0x00 | 0x0, // No LEDs
 }; 
 
 /*
  * Function:  delayCycles 
  * --------------------
- * Delays for a given number of cycles
+ * Delays for a given number of cycles.
  *
- * n: number of cycles to wait
+ * n: number of cycles to wait.
  */
 void delayCycles(uint16_t n) {
   while(n--) {
@@ -67,9 +67,9 @@ void delayCycles(uint16_t n) {
 /*
  * Function:  pRNG
  * --------------------
- * Generates a "random" number
+ * Generates a "random" number.
  *
- * returns: a somewhat random number
+ * returns: a somewhat random number.
  */
 uint8_t pRNG(void) {
   // https://www.avrfreaks.net/forum/tiny-fast-prng
@@ -84,26 +84,26 @@ uint8_t pRNG(void) {
 /*
  * Function:  setLed 
  * --------------------
- * Light a single LED
+ * Light a single LED.
  *
- * led: which LED to light (0 to NUM_LEDS-1)
+ * led: which LED to light (0 to NUM_LEDS-1).
  */
 void setLed(uint8_t led) {
   led = LEDS[led];
   uint8_t high = ((led & 0xF0) >> 4) + 1;
   uint8_t low = (led & 0x0F) + 1;
-  charliePlex(high, low);
+  charlieplex(high, low);
 }
 
 /*
- * Function:  charliePlex 
+ * Function:  charlieplex 
  * --------------------
  * Light a single LED
  *
- * high: the PORTB pin value that should be high
- * low: the PORTB pin value that should be low
+ * high: the PORTB pin value that should be high.
+ * low: the PORTB pin value that should be low.
  */
-void charliePlex(uint8_t high, uint8_t low) {
+void charlieplex(uint8_t high, uint8_t low) {
   DDRB = high | low;
   PORTB = high;
 }
@@ -111,7 +111,7 @@ void charliePlex(uint8_t high, uint8_t low) {
 /*
  * Function:  clearAll 
  * --------------------
- * Turns off all LEDs
+ * Turns off all LEDs.
  */
 inline void clearAll() {
   DDRB = 0;
@@ -124,7 +124,7 @@ inline void clearAll() {
  * Light LEDs based on a values in a bitmap.
  * Should be called in a loop.
  *
- * bitmap: bit n represents LED n, 1 = on, 0 = off
+ * bitmap: bit n represents LED n, 1 = on, 0 = off.
  */
 void drawBitmap(uint32_t bitmap) {
   // Shift bitmap right one bit at a time to determine if each LED should be on
@@ -148,9 +148,9 @@ void drawBitmap(uint32_t bitmap) {
  * --------------------
  * Light LEDs based on a values in a bitmap.
  * Should be called in a loop.
- * Like drawBitmap, but faster. Brightness of LEDs will vary
+ * Like drawBitmap, but faster. Brightness of LEDs will vary.
  *
- * bitmap: bit n represents LED n, 1 = on, 0 = off
+ * bitmap: bit n represents LED n, 1 = on, 0 = off.
  */
 void drawBitmapFast(uint32_t bitmap) {
   // The brightness of LEDs will change based on how many are lighted
@@ -168,7 +168,7 @@ void drawBitmapFast(uint32_t bitmap) {
 /*
  * Function:  patternSingleBlink
  * --------------------
- * LEDs blink randomly, one at a time
+ * LEDs blink randomly, one at a time.
  * Should be called in a loop.
  */
 void patternSingleBlink() {
@@ -188,7 +188,7 @@ void patternSingleBlink() {
 /*
  * Function:  patternRandomNoise
  * --------------------
- * LEDs blink randomly, up to half of at a time
+ * LEDs blink randomly, up to half of at a time.
  * Should be called in a loop.
  */
 void patternRandomNoise() {
@@ -214,7 +214,7 @@ void patternRandomNoise() {
 /*
  * Function:  patternFadingBlink
  * --------------------
- * LEDs blink randomly, fading out after turning on
+ * LEDs blink randomly, fading out after turning on.
  * Should be called in a loop.
  */
 void patternFadingBlink() {
@@ -265,9 +265,9 @@ void patternFadingBlink() {
  * Function:  patternBoomIn
  * --------------------
  * Like a VU/Volume Meter.
- * Should be called in a loop followed by patternBoomOut
+ * Should be called in a loop followed by patternBoomOut.
  * 
- * leds: array of uint8_t of size NUM_LEDS, init with 0 outside of loop
+ * leds: array of uint8_t of size NUM_LEDS, init with 0 outside of loop.
  */
 void patternBoomIn(uint8_t* leds) {
   const uint8_t BRIGHTNESS_STEPS = 32;
@@ -291,7 +291,7 @@ void patternBoomIn(uint8_t* leds) {
         }
       }
     }
-    // Adjust brightness of each led
+    // Adjust brightness of each led.
     done = true;
     if(stage < MAX_STAGES) { stage++; }
     for(uint8_t led = 0; led < NUM_LEDS; led++) {
@@ -313,10 +313,10 @@ void patternBoomIn(uint8_t* leds) {
  * Function:  patternBoomOut
  * --------------------
  * Like a VU/Volume Meter.
- * Should be called in a loop preceded by patternBoomIn
+ * Should be called in a loop preceded by patternBoomIn.
  * 
  * leds: array of uint8_t of size NUM_LEDS, same array
- *       as passed into patternBoomIn
+ *       as passed into patternBoomIn.
  */
 void patternBoomOut(uint8_t* leds) {
   const uint8_t BRIGHTNESS_STEPS = 32;
@@ -369,7 +369,7 @@ void patternBoomOut(uint8_t* leds) {
 /*
  * Function:  patternLoop
  * --------------------
- * LEDs fill up one at a time before unfilling one at a time
+ * LEDs fill up one at a time before unfilling one at a time.
  * Should be called in a loop.
  */
 void patternLoop() {
@@ -388,7 +388,7 @@ void patternLoop() {
 /*
  * Function:  patternFade
  * --------------------
- * LEDs fade in and then fade out
+ * LEDs fade in and then fade out.
  * Should be called in a loop.
  */
 void patternFade() {
@@ -421,7 +421,7 @@ void patternFade() {
         }
       }
     }
-    // Adjust the current brightness   
+    // Adjust the current brightness.
     if(fadeIn) {
       if(ledBrightness < BRIGHTNESS_RANGE) {
         ledBrightness += brightnessStep;
@@ -451,7 +451,7 @@ void patternFade() {
 /*
  * Function:  patternFlash
  * --------------------
- * LEDs blink on and off all together
+ * LEDs blink on and off all together.
  * Should be called in a loop.
  */
 void patternFlash() {
@@ -471,7 +471,7 @@ void patternFlash() {
  * Function:  patternWipe
  * --------------------
  * LEDs fill in from the left, then unfill to the right.
- * It looks like they're wiping across from left to right
+ * It looks like they're wiping across from left to right.
  * Should be called in a loop.
  */
 void patternWipe() {
@@ -502,7 +502,7 @@ void patternWipe() {
 /*
  * Function:  patternChase
  * --------------------
- * Theater-Chase effect, LEDs chase each other
+ * Theater-Chase effect, LEDs chase each other.
  * Should be called in a loop.
  */
 void patternChase() {
@@ -523,6 +523,7 @@ void patternChase() {
 }
 
 void setup() {
+  // Determine if we should update the random seed 'a'.
   bool updateA = false;
   // Determine if the button was pressed (external reset).
   if(MCUSR & (1 << EXTRF)) {
@@ -531,12 +532,13 @@ void setup() {
   // Reset the status register.
   MCUSR = 0;
 #if USE_EEPROM
-  // Read the saved pattern index.
+  // Read the saved pattern index and random seed 'a'.
   patternIndex = EEPROM.read(EEPROM_ADDR_PATTERN);
   a = EEPROM.read(EEPROM_ADDR_RAND_A);
   // If the button was pressed, increment pattern.
   if(buttonPressed || patternIndex >= NUM_PATTERNS) {
     patternIndex += 1;
+    // If we exceeded the number of available patterns...
     if(patternIndex >= NUM_PATTERNS) {
       patternIndex = 0;
       // Increment random seed
@@ -545,6 +547,7 @@ void setup() {
     }
     EEPROM.write(EEPROM_ADDR_PATTERN, patternIndex);
   }
+  // Make sure 'a' stays in the acceptable range.
   if(a > MAX_RAND_A || a < MIN_RAND_A) {
     a = MIN_RAND_A;
     updateA = true;
@@ -555,6 +558,7 @@ void setup() {
 #else
   patternIndex = 0;
 #endif
+  // Power saving functions.
   ACSR |= _BV(ACD); // Disable ADC.
   ADCSRA &= ~_BV(ADEN); // Disable ADC.
   // Unlock watchdog to allow changes (see datasheet section 8.5.2).
