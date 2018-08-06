@@ -1,3 +1,6 @@
+// For more information, visit:
+// http://bitwise.bperki.com/2018/08/05/block-m-pin-update-2-software-power-and-videos/
+
 // Program configuration
 #define USE_EEPROM true
 
